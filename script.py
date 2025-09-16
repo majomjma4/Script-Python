@@ -3,7 +3,7 @@ import sqlite3, os, json
 from datetime import datetime
 import threading 
 
-BD_PATH = os.path.join(os.path.expanduser("~"), "captura_formularios.db")
+BD_PATH = os.path.join(os.path.dirname(__file__), "captura_formularios.db")
 BLOQUEO_BD = threading.Lock()
 
 def ahora_iso():
@@ -11,31 +11,42 @@ def ahora_iso():
 
 
 def iniciar_db():
-    with BLOQUEO_BD:
-        conn = sqlite3.connect(BD_PATH, check_same_thread=False)
-        conn.execute("""CREATE TABLE IF NOT EXISTS envios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ruta TEXT,
-            metodo TEXT,
-            campos_json TEXT,
-            ip_cliente TEXT,
-            agente_usuario TEXT,
-            recibido_en TEXT
-        )""")
-        conn.commit()
-        return conn
+    try:
+        with BLOQUEO_BD:
+            conn = sqlite3.connect(BD_PATH, check_same_thread=False)
+            cursor = conn.cursor()
+            conn.execute("""CREATE TABLE IF NOT EXISTS envios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ruta TEXT,
+                metodo TEXT,
+                campos_json TEXT,
+                ip_cliente TEXT,
+                agente_usuario TEXT,
+                recibido_en TEXT
+            )""")
+            conn.commit()
+            cursor.close()
+            print(f"[INFO] Base de datos lista en {BD_PATH}")
+            return conn
+    except Exception as e:
+        print(f"[ERROR] No se pudo crear la base de datos: ", e)
+        raise
+    
 app = Flask(__name__)
 conexion = iniciar_db()
 
 def guardar_envio(ruta, metodo, campos, ip_cliente, agente_usuario):
-     with BLOQUEO_BD:
-        conexion.execute(
-            "INSERT INTO envios (ruta,metodo,campos_json,ip_cliente,agente_usuario,recibido_en) VALUES (?,?,?,?,?,?)",
-            ( ruta, metodo, json.dumps(campos, ensure_ascii=False), ip_cliente, agente_usuario, ahora_iso())
-        )
-        conexion.commit()
-        print(f"[CAPTURA] {ruta} desde {ip_cliente} - campos: {list(campos.keys())} - {ahora_iso()}\n")
-
+    try:
+        with BLOQUEO_BD:
+            conexion.execute(
+                "INSERT INTO envios (ruta,metodo,campos_json,ip_cliente,agente_usuario,recibido_en) VALUES (?,?,?,?,?,?)",
+                ( ruta, metodo, json.dumps(campos, ensure_ascii=False), ip_cliente, agente_usuario, ahora_iso())
+            )
+            conexion.commit()
+            print(f"[CAPTURA] {ruta} desde {ip_cliente} - campos: {list(campos.keys())} - {ahora_iso()}\n")
+    except Exception as e:
+        print("[ERROR] No se pudo guardar el envío", e)
+        
 @app.route("/", defaults ={"path": ""}, methods =["GET", "POST"])
 @app.route("/<path:path>", methods=["GET", "POST"])
 def capturar(path):
