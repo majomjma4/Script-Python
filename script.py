@@ -1,13 +1,13 @@
-from flask import Flask, request
-import sqlite3, os, json
-from datetime import datetime
+from flask import Flask, request 
+import sqlite3, os, json 
+from datetime import datetime 
 import threading 
 
-BD_PATH = os.path.join(os.path.dirname(__file__), "captura_formularios.db")
-BLOQUEO_BD = threading.Lock()
+BD_PATH = os.path.join(os.path.dirname(__file__), "captura_formularios.db") 
+BLOQUEO_BD = threading.Lock() 
 
 def ahora_iso():
-    return datetime.now().isoformat() 
+    return datetime.now().strftime("%d/%m/%Y %H:%M:%S") 
 
 
 def iniciar_db():
@@ -43,7 +43,7 @@ def guardar_envio(ruta, metodo, campos, ip_cliente, agente_usuario):
                 ( ruta, metodo, json.dumps(campos, ensure_ascii=False), ip_cliente, agente_usuario, ahora_iso())
             )
             conexion.commit()
-            print(f"[CAPTURA] {ruta} desde {ip_cliente} - campos: {list(campos.keys())} - {ahora_iso()}\n")
+            print(f"\n[CAPTURA] {ruta} desde {ip_cliente} - campos: {list(campos.keys())} - {ahora_iso()}\n")
     except Exception as e:
         print("[ERROR] No se pudo guardar el envío", e)
         
@@ -78,4 +78,4 @@ if __name__ == "__main__":
     try:
         iniciar_app()
     except KeyboardInterrupt:
-        print("\n[INFO] Captura detenida por el usuario. \n")
+        print("\n[INFO] Captura detenida por el usuario. \n") 
